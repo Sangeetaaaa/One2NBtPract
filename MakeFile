@@ -73,6 +73,21 @@ clean: stop
 	docker volume rm mongodb_data 2>/dev/null || true
 	docker network rm $(NETWORK_NAME) 2>/dev/null || true
 
+# Build the API Docker image
+build:
+	@echo "Building API Docker image..."
+	docker-compose build api
+
+# Run tests for the API (assumes API has a test command in package.json)
+test:
+	@echo "Running tests..."
+	docker-compose run --rm api npm test
+
+# Perform linting (assumes API has a lint command in package.json)
+lint:
+	@echo "Running linting..."
+	docker-compose run --rm api npm run lint
+
 # Help target
 help:
 	@echo "Available targets:"
@@ -81,6 +96,9 @@ help:
 	@echo "  db-migrate   - Run database migrations only"
 	@echo "  stop         - Stop all containers"
 	@echo "  clean        - Remove all containers, volumes, and networks"
+	@echo "  build        - Build the API Docker image"
+	@echo "  test         - Run tests"
+	@echo "  lint         - Run linting"
 	@echo "  help         - Show this help message"
 
-.PHONY: check-db check-migrations db-start db-migrate api-start stop clean help
+.PHONY: check-db check-migrations db-start db-migrate api-start stop clean build test lint help

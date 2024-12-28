@@ -1,0 +1,41 @@
+name: CI Pipeline
+
+on:
+  push:
+    paths:
+      - '/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build API
+        run: make build
+
+      - name: Run Tests
+        run: make test
+
+      - name: Perform Code Linting
+        run: make lint
+
+  dockerize:
+    runs-on: self-hosted
+    needs: build-and-test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Docker Login
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Docker Build and Push
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/$API_IMAGE_NAME .
+          docker push ${{ secrets.DOCKER_USERNAME }}/$API_IMAGE_NAME
