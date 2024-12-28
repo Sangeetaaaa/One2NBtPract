@@ -1,45 +1,86 @@
-DOCKER_IMAGE_NAME=student-api
-DOCKER_CONTAINER_NAME=student-api-container
-MONGODB_CONTAINER_NAME=mongodb
-API_PORT=3000
-MONGODB_PORT=27017
-MONGODB_URI=mongodb://localhost:27017
+# Variables
+DB_CONTAINER_NAME=mongodb
+API_IMAGE_NAME=student-api
+NETWORK_NAME=app-network
 
-.PHONY: all db-start db-stop migrations build-image run-api clean deploy
+# Check if MongoDB is running
+check-db:
+	@if [ -z "$$(docker ps -q -f name=$(DB_CONTAINER_NAME))" ]; then \
+		echo "MongoDB is not running. Starting MongoDB..." && \
+		$(MAKE) db-start; \
+	else \
+		echo "MongoDB is already running."; \
+	fi
 
-deploy:
-	$(MAKE) build-image db-start migrations run-api
-	@echo "Deployment complete. API running on port $(API_PORT)"
+# Check if migrations are applied
+check-migrations:
+	@echo "Checking if migrations are applied..."
+	@if ! docker exec $(DB_CONTAINER_NAME) mongosh --eval \
+		'db = db.getSiblingDB("school"); \
+		if (db.students.exists()) { exit(0) } else { exit(1) }' >/dev/null 2>&1; then \
+		echo "Migrations not found. Applying migrations..." && \
+		$(MAKE) db-migrate; \
+	else \
+		echo "Migrations already applied."; \
+	fi
 
+# Start MongoDB container
 db-start:
 	@echo "Starting MongoDB container..."
-	docker run --name $(MONGODB_CONTAINER_NAME) \
-		-d \
-		-p $(MONGODB_PORT):27017 \
-		-v mongodb_data:/data/db \
-		mongo:latest
+	@docker network create $(NETWORK_NAME) 2>/dev/null || true
+	@if [ -z "$$(docker ps -a -q -f name=$(DB_CONTAINER_NAME))" ]; then \
+		docker run --name $(DB_CONTAINER_NAME) \
+			--network $(NETWORK_NAME) \
+			-v mongodb_data:/data/db \
+			-p 27017:27017 \
+			-d mongo:latest && \
+		echo "Waiting for MongoDB to start..." && \
+		sleep 5; \
+	else \
+		docker start $(DB_CONTAINER_NAME); \
+	fi
 
-migrations:
+# Run database migrations
+db-migrate:
 	@echo "Running database migrations..."
-	mongosh $(MONGODB_URI) --eval 'use school' \
-		--eval 'db.createCollection("students")' \
-		--eval 'db.students.createIndex({"email": 1}, {unique: true})'
+	@docker exec $(DB_CONTAINER_NAME) mongosh --eval \
+		'db = db.getSiblingDB("school"); \
+		db.createCollection("students"); \
+		if (!db.students.indexExists("email_1")) { \
+			db.students.createIndex({"email": 1}, {unique: true}); \
+		}'
 
-build-image:
-	@echo "Building REST API Docker image..."
-	docker build -t $(DOCKER_IMAGE_NAME) \
-		--build-arg PORT=$(API_PORT) \
-		.
+# Start the API using docker-compose
+api-start: check-db check-migrations
+	@echo "Starting API container using docker-compose..."
+	docker-compose up -d api
 
-run-api:
-	@echo "Starting REST API container..."
-	docker run --name $(DOCKER_CONTAINER_NAME) \
-		-d \
-		-p $(API_PORT):$(API_PORT) \
-		--network host \
-		$(DOCKER_IMAGE_NAME)
+# Stop everything
+stop:
+	@echo "Stopping all containers..."
+	docker-compose down
+	@if [ ! -z "$$(docker ps -q -f name=$(DB_CONTAINER_NAME))" ]; then \
+		docker stop $(DB_CONTAINER_NAME); \
+	fi
 
-clean:
-	docker stop $(MONGODB_CONTAINER_NAME) $(DOCKER_CONTAINER_NAME) || true
-	docker rm $(MONGODB_CONTAINER_NAME) $(DOCKER_CONTAINER_NAME) || true
-	docker rmi $(DOCKER_IMAGE_NAME) || true
+# Clean everything
+clean: stop
+	@echo "Cleaning up containers and volumes..."
+	docker-compose down -v
+	@if [ ! -z "$$(docker ps -a -q -f name=$(DB_CONTAINER_NAME))" ]; then \
+		docker rm $(DB_CONTAINER_NAME); \
+	fi
+	docker volume rm mongodb_data 2>/dev/null || true
+	docker network rm $(NETWORK_NAME) 2>/dev/null || true
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  api-start    - Start the complete application (DB + API)"
+	@echo "  db-start     - Start MongoDB container only"
+	@echo "  db-migrate   - Run database migrations only"
+	@echo "  stop         - Stop all containers"
+	@echo "  clean        - Remove all containers, volumes, and networks"
+	@echo "  help         - Show this help message"
+
+.PHONY: check-db check-migrations db-start db-migrate api-start stop clean help

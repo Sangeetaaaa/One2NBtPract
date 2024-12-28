@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,14 +23,19 @@ var studentCollection *mongo.Collection
 
 func main() {
 	// Set up MongoDB client
+	mongoURI := os.Getenv("MONGODB_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://localhost:27017"
+	}
+
+	// Set up MongoDB client
 	var err error
-	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(mongoURI))
 	if err != nil {
 		panic(err)
 	}
 
 	studentCollection = client.Database("school").Collection("students")
-
 	router := gin.Default()
 
 	// Middleware to log requests
@@ -48,7 +54,7 @@ func main() {
 		v1.GET("/healthcheck", healthCheck)
 	}
 
-	router.Run("localhost:3000")
+	router.Run("0.0.0.0:3000")
 }
 
 func addStudent(c *gin.Context) {
