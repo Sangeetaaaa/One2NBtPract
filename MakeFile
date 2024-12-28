@@ -1,0 +1,45 @@
+DOCKER_IMAGE_NAME=student-api
+DOCKER_CONTAINER_NAME=student-api-container
+MONGODB_CONTAINER_NAME=mongodb
+API_PORT=3000
+MONGODB_PORT=27017
+MONGODB_URI=mongodb://localhost:27017
+
+.PHONY: all db-start db-stop migrations build-image run-api clean deploy
+
+deploy:
+	$(MAKE) build-image db-start migrations run-api
+	@echo "Deployment complete. API running on port $(API_PORT)"
+
+db-start:
+	@echo "Starting MongoDB container..."
+	docker run --name $(MONGODB_CONTAINER_NAME) \
+		-d \
+		-p $(MONGODB_PORT):27017 \
+		-v mongodb_data:/data/db \
+		mongo:latest
+
+migrations:
+	@echo "Running database migrations..."
+	mongosh $(MONGODB_URI) --eval 'use school' \
+		--eval 'db.createCollection("students")' \
+		--eval 'db.students.createIndex({"email": 1}, {unique: true})'
+
+build-image:
+	@echo "Building REST API Docker image..."
+	docker build -t $(DOCKER_IMAGE_NAME) \
+		--build-arg PORT=$(API_PORT) \
+		.
+
+run-api:
+	@echo "Starting REST API container..."
+	docker run --name $(DOCKER_CONTAINER_NAME) \
+		-d \
+		-p $(API_PORT):$(API_PORT) \
+		--network host \
+		$(DOCKER_IMAGE_NAME)
+
+clean:
+	docker stop $(MONGODB_CONTAINER_NAME) $(DOCKER_CONTAINER_NAME) || true
+	docker rm $(MONGODB_CONTAINER_NAME) $(DOCKER_CONTAINER_NAME) || true
+	docker rmi $(DOCKER_IMAGE_NAME) || true
