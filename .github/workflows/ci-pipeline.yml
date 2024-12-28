@@ -3,7 +3,7 @@ name: CI Pipeline
 on:
   push:
     paths:
-      - '/**'
+      - 'code/**'  # Adjust this to specify the exact directory for code changes
   workflow_dispatch:
 
 jobs:
