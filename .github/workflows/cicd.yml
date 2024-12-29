@@ -1,15 +1,10 @@
 name: CI Pipeline
 
 on:
-  # Manual trigger
   workflow_dispatch:
-  
-  # Trigger on push to specific paths
   push:
     paths:
       - 'code/**'
-      
-  # Trigger on pull request to specific paths
   pull_request:
     paths:
       - 'code/**'
@@ -24,78 +19,54 @@ jobs:
 
       - name: Debug Environment
         run: |
-          echo "Workspace directory: ${{ github.workspace }}"
+          echo "Workspace directory: \"$GITHUB_WORKSPACE\""
           echo "Current directory:"
           pwd
           echo "Directory contents:"
-          ls -la
-          echo "Full directory structure:"
-          find . -type f -name "Makefile"
+          ls -la "$GITHUB_WORKSPACE"
+      
+      - name: Set up environment
+        run: |
+          # Store the workspace path in a file to avoid space issues
+          echo "$GITHUB_WORKSPACE" > ~/.workspace_path
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
+          echo "Changed to workspace directory: $PWD"
       
       - name: Build API
-        shell: bash
         run: |
-          if [ -f "Makefile" ]; then
-            echo "Found Makefile in current directory"
-            make build
-          else
-            echo "Searching for Makefile..."
-            MAKEFILE_PATH=$(find . -type f -name "Makefile")
-            if [ ! -z "$MAKEFILE_PATH" ]; then
-              echo "Found Makefile at: $MAKEFILE_PATH"
-              cd $(dirname "$MAKEFILE_PATH")
-              make build
-            else
-              echo "No Makefile found!"
-              exit 1
-            fi
-          fi
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
+          make build
       
       - name: Run tests
-        shell: bash
         run: |
-          if [ -f "Makefile" ]; then
-            make test
-          else
-            MAKEFILE_PATH=$(find . -type f -name "Makefile")
-            cd $(dirname "$MAKEFILE_PATH")
-            make test
-          fi
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
+          make test
       
       - name: Run linting
-        shell: bash
         run: |
-          if [ -f "Makefile" ]; then
-            make lint
-          else
-            MAKEFILE_PATH=$(find . -type f -name "Makefile")
-            cd $(dirname "$MAKEFILE_PATH")
-            make lint
-          fi
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
+          make lint
       
       - name: Login to Docker Hub
         run: |
           echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
       
       - name: Build and push Docker image
-        shell: bash
         run: |
-          # Find directory containing Dockerfile
-          if [ -f "Dockerfile" ]; then
-            DOCKER_DIR="."
-          else
-            DOCKER_DIR=$(dirname $(find . -type f -name "Dockerfile"))
-          fi
-          
-          cd "$DOCKER_DIR"
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
           
           # Get the short SHA of the commit
           SHA=$(git rev-parse --short HEAD)
           
           # Build the image with both latest and SHA tags
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/student-api:latest .
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/student-api:${SHA} .
+          docker build -t "${{ secrets.DOCKER_USERNAME }}/student-api:latest" .
+          docker build -t "${{ secrets.DOCKER_USERNAME }}/student-api:${SHA}" .
           
           # Push both tags
-          docker push ${{ secrets.DOCKER_USERNAME }}/student-api:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/student-api:${SHA}
+          docker push "${{ secrets.DOCKER_USERNAME }}/student-api:latest"
+          docker push "${{ secrets.DOCKER_USERNAME }}/student-api:${SHA}"
