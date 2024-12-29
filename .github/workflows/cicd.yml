@@ -24,31 +24,20 @@ jobs:
           pwd
           echo "Directory contents:"
           ls -la "$GITHUB_WORKSPACE"
-      
-      - name: Set up environment
-        run: |
-          # Store the workspace path in a file to avoid space issues
-          echo "$GITHUB_WORKSPACE" > ~/.workspace_path
-          WORKSPACE_PATH=$(cat ~/.workspace_path)
-          cd "$WORKSPACE_PATH"
-          echo "Changed to workspace directory: $PWD"
-      
+
       - name: Build API
         run: |
-          WORKSPACE_PATH=$(cat ~/.workspace_path)
-          cd "$WORKSPACE_PATH"
+          cd "$GITHUB_WORKSPACE"
           make build
       
       - name: Run tests
         run: |
-          WORKSPACE_PATH=$(cat ~/.workspace_path)
-          cd "$WORKSPACE_PATH"
+          cd "$GITHUB_WORKSPACE"
           make test
       
       - name: Run linting
         run: |
-          WORKSPACE_PATH=$(cat ~/.workspace_path)
-          cd "$WORKSPACE_PATH"
+          cd "$GITHUB_WORKSPACE"
           make lint
       
       - name: Login to Docker Hub
@@ -57,8 +46,7 @@ jobs:
       
       - name: Build and push Docker image
         run: |
-          WORKSPACE_PATH=$(cat ~/.workspace_path)
-          cd "$WORKSPACE_PATH"
+          cd "$GITHUB_WORKSPACE"
           
           # Get the short SHA of the commit
           SHA=$(git rev-parse --short HEAD)
