@@ -78,16 +78,6 @@ build:
 	@echo "Building API Docker image..."
     sudo docker-compose build --progress=plain api
 
-# Run tests for the API (assumes API has a test command in package.json)
-test:
-	@echo "Running tests..."
-	sudo docker-compose run --rm api npm test
-
-# Perform linting (assumes API has a lint command in package.json)
-lint:
-	@echo "Running linting..."
-	sudo docker-compose run --rm api npm run lint
-
 # Help target
 help:
 	@echo "Available targets:"
