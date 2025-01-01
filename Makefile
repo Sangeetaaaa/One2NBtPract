@@ -76,17 +76,17 @@ clean: stop
 # Build the API Docker image
 build:
 	@echo "Building API Docker image..."
-	docker-compose build api
+	sudo docker-compose build api
 
 # Run tests for the API (assumes API has a test command in package.json)
 test:
 	@echo "Running tests..."
-	docker-compose run --rm api npm test
+	sudo docker-compose run --rm api npm test
 
 # Perform linting (assumes API has a lint command in package.json)
 lint:
 	@echo "Running linting..."
-	docker-compose run --rm api npm run lint
+	sudo docker-compose run --rm api npm run lint
 
 # Help target
 help:
