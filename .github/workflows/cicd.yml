@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'code/**'
+      - '/**'
   pull_request:
     paths:
-      - 'code/**'
+      - '/**'
 
 jobs:
   build-and-test:
@@ -21,23 +21,34 @@ jobs:
         run: |
           echo "Workspace directory: \"$GITHUB_WORKSPACE\""
           echo "Current directory:"
-          pwd
+          ls
           echo "Directory contents:"
           ls -la "$GITHUB_WORKSPACE"
-
+      
+      - name: Set up environment
+        run: |
+          # Store the workspace path in a file to avoid space issues
+          echo "$GITHUB_WORKSPACE" > ~/.workspace_path
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
+          echo "Changed to workspace directory: $PWD"
+      
       - name: Build API
         run: |
-          cd "$GITHUB_WORKSPACE"
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
           make build
       
       - name: Run tests
         run: |
-          cd "$GITHUB_WORKSPACE"
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
           make test
       
       - name: Run linting
         run: |
-          cd "$GITHUB_WORKSPACE"
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"
           make lint
       
       - name: Login to Docker Hub
@@ -46,7 +57,8 @@ jobs:
       
       - name: Build and push Docker image
         run: |
-          cd "$GITHUB_WORKSPACE"
+          WORKSPACE_PATH=$(cat ~/.workspace_path)
+          cd "$WORKSPACE_PATH"  
           
           # Get the short SHA of the commit
           SHA=$(git rev-parse --short HEAD)
