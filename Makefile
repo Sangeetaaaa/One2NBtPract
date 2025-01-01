@@ -76,7 +76,7 @@ clean: stop
 # Build the API Docker image
 build:
 	@echo "Building API Docker image..."
-	sudo docker-compose build api
+    sudo docker-compose build --progress=plain api
 
 # Run tests for the API (assumes API has a test command in package.json)
 test:
