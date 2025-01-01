@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '/**'
+      - 'master'
   pull_request:
     paths:
-      - '/**'
+      - 'master'
 
 jobs:
   build-and-test:
